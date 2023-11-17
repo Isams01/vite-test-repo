@@ -1,0 +1,1 @@
+{"version":3,"file":"browser-database-factory.d.ts","sourceRoot":"","sources":["../src/browser-database-factory.ts"],"names":[],"mappings":"AAAA,OAAO,EACL,cAAc,EACd,qBAAqB,EACtB,MAAM,kDAAkD,CAAC;AAI1D,qBAAa,4BAA6B,YAAW,qBAAqB;IACxE,QAAQ,CAAC,YAAY,EAAE,MAAM,CAAC;gBAElB,YAAY,EAAE,MAAM;IAI1B,IAAI,CAAC,QAAQ,EAAE,MAAM,GAAG,OAAO,CAAC,cAAc,CAAC;CAgBtD"}
