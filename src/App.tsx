@@ -2,9 +2,14 @@ import { useEffect, useState } from "react";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.css";
-import { createNetworkedDatabaseManager } from "@new-mareland/crystal-mirror";
+import {
+  MockDatabaseManager,
+  RxDatabase,
+  createMockDatabaseManager,
+} from "@new-mareland/crystal-mirror";
 import { getRxBrowserStorage } from "@new-mareland/crystal-mirror-browser-storage";
 import { DateTime, Interval } from "luxon";
+import { generateTestData } from "./helpers";
 
 async function profile<T>(f: () => Promise<T>, hint?: string) {
   const start = DateTime.utc();
@@ -16,30 +21,46 @@ async function profile<T>(f: () => Promise<T>, hint?: string) {
   }
 }
 
+// async function sleep(ms: number) {
+//   return new Promise((resolve) => setTimeout(resolve, ms));
+// }
+
 async function runCrystalMirrorTest(testNumber: string) {
-  return createNetworkedDatabaseManager({
+  return createMockDatabaseManager({
     storage: getRxBrowserStorage({
       workerDirUrl: "http://localhost:5173/worker",
     }),
-    baseUrl: "http://localhost:5173/api/plugin-proxy/illumass-app/",
-    networkAvailabilityPollInterval: 10_000,
-    cacheSize: 100,
-  }).then(async (manager) => {
-    // manager.setGrafanaSessionId('be591cd4d9b98b555b6752119c2fde24')
+  }).then(async (manager: MockDatabaseManager & { db?: RxDatabase }) => {
+    if (testNumber === "0") {
+      const { devices, assets, signals, signalStatuses } = generateTestData(100);
+      console.log("devices length ", devices.length);
+      console.log("assets length ", assets.length);
+      console.log("signals length ", signals.length);
+      console.log("signal statuses length ", signalStatuses.length);
+      manager.pullQueues.devices((q) => q.concat(devices));
+      manager.pullQueues.assets((q) => q.concat(assets));
+      manager.pullQueues.signals((q) => q.concat(signals));
+      manager.pullQueues.signalStatuses((q) => q.concat(signalStatuses));
+    }
+    manager.collections?.signals.insert$.subscribe((signals) => {console.log('signals change', signals)});
+    manager.collections?.signals.update$.subscribe((signals) => {console.log('signals update', signals)});
     await profile(async () => manager.start(), "Manager start " + testNumber);
     await profile(
       async () => manager.waitForInitialReplication(),
       "Initial replication " + testNumber
     );
-    await profile(
-      async () => manager.createAssetLevelInfoMap(),
-      "asset level info map " + testNumber
-    );
-    await profile(
-      async () => manager.createAssetStatusMap(),
-      "asset status map " + testNumber
-    );
-    await manager.stop();
+    // await profile(
+    //   async () => manager.createAssetLevelInfoMap(),
+    //   "asset level info map " + testNumber
+    // );
+    // await profile(
+    //   async () => manager.createAssetStatusMap(),
+    //   "asset status map " + testNumber
+    // );
+    console.log("stopping");
+    await profile(() => manager.stop(), "manager stop " + testNumber);
+    console.log("stopped");
+    // await sleep(5000)
     return manager;
   });
 }
@@ -47,7 +68,9 @@ async function runCrystalMirrorTest(testNumber: string) {
 const runCrystalMirrorTests = async (numTests: number) => {
   const testArrayNums = Array.from(Array(numTests).keys());
   for (const testNum of testArrayNums) {
+    console.log("running test ", testNum);
     await runCrystalMirrorTest(testNum.toString());
+    console.log("done test", testNum);
   }
 };
 let started = false;
@@ -59,7 +82,7 @@ function App() {
       started = true;
       console.log("hello from vite");
 
-      runCrystalMirrorTests(50);
+      runCrystalMirrorTests(100);
     }
   }, []);
 
