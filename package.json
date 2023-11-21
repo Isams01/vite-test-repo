@@ -4,14 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --force",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@new-mareland/crystal-mirror": "^1.2.0-5",
-    "@new-mareland/crystal-mirror-browser-storage": "^1.2.0-5",
+    "@new-mareland/crystal-mirror": "^1.1.1-4",
+    "@new-mareland/crystal-mirror-browser-storage": "^1.1.1-4",
     "@sqlite.org/sqlite-wasm": "^3.43.0-build3",
     "comlink": "^4.4.1",
     "immutable": "^5.0.0-beta.1",
@@ -19,7 +19,8 @@
     "luxon": "^3.4.4",
     "nanoid": "^4.0.2",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "rxdb": "^14.17.1"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.197",
