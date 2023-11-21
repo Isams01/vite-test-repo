@@ -32,18 +32,19 @@ async function runCrystalMirrorTest(testNumber: string) {
     }),
   }).then(async (manager: MockDatabaseManager & { db?: RxDatabase }) => {
     if (testNumber === "0") {
-      const { devices, assets, signals, signalStatuses } = generateTestData(100);
-      console.log("devices length ", devices.length);
-      console.log("assets length ", assets.length);
-      console.log("signals length ", signals.length);
-      console.log("signal statuses length ", signalStatuses.length);
-      manager.pullQueues.devices((q) => q.concat(devices));
-      manager.pullQueues.assets((q) => q.concat(assets));
-      manager.pullQueues.signals((q) => q.concat(signals));
-      manager.pullQueues.signalStatuses((q) => q.concat(signalStatuses));
+      const deviceCount = await manager.collections?.devices.count().exec();
+      if (deviceCount === 0) {
+        const { devices, assets, signals, signalStatuses } = generateTestData(100);
+        console.log("devices length ", devices.length);
+        console.log("assets length ", assets.length);
+        console.log("signals length ", signals.length);
+        console.log("signal statuses length ", signalStatuses.length);
+        manager.pullQueues.devices((q) => q.concat(devices));
+        manager.pullQueues.assets((q) => q.concat(assets));
+        manager.pullQueues.signals((q) => q.concat(signals));
+        manager.pullQueues.signalStatuses((q) => q.concat(signalStatuses));
+      }
     }
-    manager.collections?.signals.insert$.subscribe((signals) => {console.log('signals change', signals)});
-    manager.collections?.signals.update$.subscribe((signals) => {console.log('signals update', signals)});
     await profile(async () => manager.start(), "Manager start " + testNumber);
     await profile(
       async () => manager.waitForInitialReplication(),
@@ -82,7 +83,7 @@ function App() {
       started = true;
       console.log("hello from vite");
 
-      runCrystalMirrorTests(100);
+      runCrystalMirrorTests(10);
     }
   }, []);
 
