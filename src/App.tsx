@@ -114,11 +114,10 @@ async function runCrystalMirrorTest(numberOfDevices: number, testRun: number) {
 
 const runCrystalMirrorTests = async (numberOfDevices: List<number>, numTests: number) => {
   await numberOfDevices.reduce(async (p1, numDevices) => {
-    console.log(`test with ${numDevices} devices`);
     await Range(0, numTests).reduce(async (p2, testNum) => {
       await p2;
       await runCrystalMirrorTest(numDevices, testNum);
-    }, p1);
+    }, p1.then(() => console.log(`test with ${numDevices} devices`)));
     printStats();
   }, Promise.resolve());
   console.log('done');
