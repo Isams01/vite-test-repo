@@ -47,9 +47,9 @@ function printStats() {
       samples.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / samples.size;
     const stdDev = Math.sqrt(variance);
     console.log(
-      `Hint: ${hint} mean: ${mean.toFixed(
+      `Hint: ${hint} samples: ${samples.size}\nmean: ${mean.toFixed(
         2
-      )}ms stdDev: ${stdDev.toFixed(2)}ms samples: ${samples.size}`
+      )}ms stdDev: ${stdDev.toFixed(2)}ms max: ${samples.max()?.toFixed(2)}ms`
     );
   });
 }
