@@ -10,6 +10,13 @@ import {
 import { getRxBrowserStorage } from "@new-mareland/crystal-mirror-browser-storage";
 import { DateTime, Interval } from "luxon";
 import { generateTestData } from "./helpers";
+import { Map, List, Range } from "immutable";
+
+type Stats = {
+  samples: List<number>;
+};
+
+let statsByHint: Map<string, Stats> = Map();
 
 async function profile<T>(f: () => Promise<T>, hint?: string) {
   const start = DateTime.utc();
@@ -17,24 +24,67 @@ async function profile<T>(f: () => Promise<T>, hint?: string) {
     return await f();
   } finally {
     const elapsed = Interval.fromDateTimes(start, DateTime.utc()).toDuration();
-    console.log((hint ?? "elapsed") + ": " + elapsed.toISO());
+    const k = hint ?? 'elapsed';
+    statsByHint = statsByHint.update(k, (stats) => {
+      if (stats === undefined) {
+        return {
+          samples: List([elapsed.as("milliseconds")]),
+        };
+      } else {
+        stats.samples = stats.samples.push(elapsed.as("milliseconds"));
+        return stats;
+      }
+    });
   }
 }
 
-// async function sleep(ms: number) {
-//   return new Promise((resolve) => setTimeout(resolve, ms));
-// }
+function printStats() {
+  statsByHint.forEach((stats, hint) => {
+    const samples = stats.samples;
+    const sum = samples.reduce((a, b) => a + b, 0);
+    const mean = sum / samples.size;
+    const variance =
+      samples.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / samples.size;
+    const stdDev = Math.sqrt(variance);
+    console.log(
+      `Hint: ${hint} mean: ${mean.toFixed(
+        2
+      )}ms stdDev: ${stdDev.toFixed(2)}ms samples: ${samples.size}`
+    );
+  });
+}
 
-async function runCrystalMirrorTest(testNumber: string) {
+async function runCrystalMirrorTest(numberOfDevices: number, testRun: number) {
+  if (testRun == 0) {
+    // Delete database
+    const opfsDir = await navigator.storage.getDirectory()
+    try {
+      await opfsDir.removeEntry('crystal_mirror.mock_crystal_mirror.db');
+    } catch (err) {
+      // ignore any errors
+    }
+  }
+
   return createMockDatabaseManager({
     storage: getRxBrowserStorage({
       workerDirUrl: "http://localhost:5173/worker",
     }),
   }).then(async (manager: MockDatabaseManager & { db?: RxDatabase }) => {
-    if (testNumber === "0") {
+    await profile(async () => manager.start(), "Manager start");
+
+    if (manager.collections === undefined) {
+      throw new Error("collections is undefined");
+    }
+
+    if (testRun == 0) {
       const deviceCount = await manager.collections?.devices.count().exec();
-      if (deviceCount === 0) {
-        const { devices, assets, signals, signalStatuses } = generateTestData(100);
+      if (deviceCount === undefined) {
+        throw new Error("device count is undefined");
+      }
+
+      if (deviceCount == 0) {
+        console.log('generating test data');
+        const { devices, assets, signals, signalStatuses } = generateTestData(numberOfDevices);
         console.log("devices length ", devices.length);
         console.log("assets length ", assets.length);
         console.log("signals length ", signals.length);
@@ -45,35 +95,35 @@ async function runCrystalMirrorTest(testNumber: string) {
         manager.pullQueues.signalStatuses((q) => q.concat(signalStatuses));
       }
     }
-    await profile(async () => manager.start(), "Manager start " + testNumber);
+
     await profile(
       async () => manager.waitForInitialReplication(),
-      "Initial replication " + testNumber
+      "Initial replication"
     );
-    // await profile(
-    //   async () => manager.createAssetLevelInfoMap(),
-    //   "asset level info map " + testNumber
-    // );
-    // await profile(
-    //   async () => manager.createAssetStatusMap(),
-    //   "asset status map " + testNumber
-    // );
-    console.log("stopping");
-    await profile(() => manager.stop(), "manager stop " + testNumber);
-    console.log("stopped");
-    // await sleep(5000)
-    return manager;
+    await profile(
+      async () => manager.createAssetLevelInfoMap(),
+      "asset level info map"
+    );
+    await profile(
+      async () => manager.createAssetStatusMap(),
+      "asset status map"
+    );
+    await profile(() => manager.stop(), "manager stop");
   });
 }
 
-const runCrystalMirrorTests = async (numTests: number) => {
-  const testArrayNums = Array.from(Array(numTests).keys());
-  for (const testNum of testArrayNums) {
-    console.log("running test ", testNum);
-    await runCrystalMirrorTest(testNum.toString());
-    console.log("done test", testNum);
-  }
+const runCrystalMirrorTests = async (numberOfDevices: List<number>, numTests: number) => {
+  await numberOfDevices.reduce(async (p1, numDevices) => {
+    console.log(`test with ${numDevices} devices`);
+    await Range(0, numTests).reduce(async (p2, testNum) => {
+      await p2;
+      await runCrystalMirrorTest(numDevices, testNum);
+    }, p1);
+    printStats();
+  }, Promise.resolve());
+  console.log('done');
 };
+
 let started = false;
 function App() {
   const [count, setCount] = useState(0);
@@ -83,7 +133,7 @@ function App() {
       started = true;
       console.log("hello from vite");
 
-      runCrystalMirrorTests(10);
+      runCrystalMirrorTests(List([100, 1_000, 10_000]), 100);
     }
   }, []);
 
